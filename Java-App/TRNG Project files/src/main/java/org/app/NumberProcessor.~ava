@@ -1,0 +1,79 @@
+package org.app;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fazecast.jSerialComm.SerialPort;
+
+public class NumberProcessor {
+    // get all Ports
+    private SerialPort[] ports;
+    private SerialPort comPort;
+    private List<String> input;
+    InputStream in;
+
+
+    public NumberProcessor(){
+        input = new ArrayList<>();
+
+
+    }
+
+    private void processPorts(){
+        ports  = SerialPort.getCommPorts();
+        for (int i = 0; i < ports.length; i++){
+            System.out.println("Port "  + i + ": " + ports[i].getSystemPortName() + ", " + ports[i].getPortDescription());
+        }
+        if(ports.length == 0){
+            System.out.println("No devices found");
+            return;
+        }
+
+        // Use the fitting Port UPDATE THIS
+        comPort = ports[0];
+
+        comPort.setBaudRate(115200);
+
+        if(comPort.openPort()){
+            System.out.println("Opened Port: " + comPort.getSystemPortName());
+        }else{
+            System.out.println("Fehler beim Öffnen des Ports.");
+            return;
+        }
+
+        comPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING,0,0);
+        InputStream in = comPort.getInputStream();
+
+       System.out.println("Board has been set up!");
+    }
+
+    private void getBytes(){
+        try{
+            System.out.println("Retrieving Data from Board...");
+            StringBuilder buffer = new StringBuilder();
+
+            while (true) {
+                if (in.available() > 0) {
+                    char c = (char) in.read();
+
+                    // Wenn ein Zeilenumbruch kommt, geben wir die fertige Zeile aus
+                    if (c == '\n') {
+                        System.out.println("Empfangen: " + buffer.toString().trim());
+                        buffer.setLength(0); // Puffer leeren
+                    } else {
+                        buffer.append(c);
+                    }
+                }
+                // Kurze Pause, um die CPU zu entlasten
+                Thread.sleep(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // 5. Port sauber schließen, wenn das Programm endet
+            comPort.closePort();
+            System.out.println("Port geschlossen.");
+        }
+    }
+
+}

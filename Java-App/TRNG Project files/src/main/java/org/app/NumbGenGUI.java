@@ -1,0 +1,226 @@
+package org.app;
+
+import com.fazecast.jSerialComm.SerialPort;
+
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+
+/**
+ *
+ * Beschreibung
+ *
+ * @version 1.0 vom 30.06.2026
+ * @Plum
+ */
+
+public class NumbGenGUI extends JFrame {
+  // Anfang Attribute
+  private JLabel lYourBoard = new JLabel();
+  private JTextField jBoard = new JTextField();
+  private JLabel lInputStream = new JLabel();
+  private JLabel lResults = new JLabel();
+  private JTextArea jTextArea1 = new JTextArea();
+  private JScrollPane jTextArea1ScrollPane = new JScrollPane(jTextArea1);
+  private JTextArea jTextArea2 = new JTextArea();
+  private JScrollPane jTextArea2ScrollPane = new JScrollPane(jTextArea2);
+  private JComboBox<String> jComboBox1 = new JComboBox<>();
+  private DefaultComboBoxModel<String> jComboBox1Model = new DefaultComboBoxModel<>();
+  private JButton bSelect = new JButton();
+  private JButton bRuntest = new JButton();
+  private NumberProcessor proc;
+  private Thread readThread;
+  // Ende Attribute
+
+  public NumbGenGUI() {
+    // Frame init
+    super();
+    setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+    int frameWidth = 638; 
+    int frameHeight = 296;
+    setSize(frameWidth, frameHeight);
+    Dimension d = Toolkit.getDefaultToolkit().getScreenSize();
+    int x = (d.width - getSize().width) / 2;
+    int y = (d.height - getSize().height) / 2;
+    setLocation(x, y);
+    setTitle("NumbGenGUI");
+    setResizable(false);
+    Container cp = getContentPane();
+    cp.setLayout(null);
+    lYourBoard.setBounds(24, 8, 80, 24);
+    lYourBoard.setFont(new Font("Dialog", Font.BOLD, 11));
+    lYourBoard.setText("Your Board:");
+    cp.add(lYourBoard);
+    jBoard.setBounds(24, 32, 112, 24);
+    jBoard.setFont(new Font("Dialog", Font.PLAIN, 11));
+    jBoard.setEditable(false);
+    jBoard.setText("None");
+    cp.add(jBoard);
+    lInputStream.setBounds(152, 8, 80, 24);
+    lInputStream.setFont(new Font("Dialog", Font.BOLD, 11));
+    lInputStream.setText("Input Stream:");
+    cp.add(lInputStream);
+    lResults.setBounds(384, 8, 80, 24);
+    lResults.setFont(new Font("Dialog", Font.BOLD, 11));
+    lResults.setText("Results:");
+    cp.add(lResults);
+    jTextArea1ScrollPane.setBounds(152, 32, 224, 216);
+    jTextArea1.setFont(new Font("Dialog", Font.PLAIN, 11));
+    jTextArea1.setEditable(false);
+    cp.add(jTextArea1ScrollPane);
+    jTextArea2ScrollPane.setBounds(384, 32, 232, 216);
+    jTextArea2.setFont(new Font("Dialog", Font.PLAIN, 11));
+    jTextArea2.setEditable(false);
+    cp.add(jTextArea2ScrollPane);
+    jComboBox1.setModel(jComboBox1Model);
+    jComboBox1.setFont(new Font("Dialog", Font.BOLD, 11));
+    jComboBox1.setBounds(24, 72, 112, 24);
+    cp.add(jComboBox1);
+    bSelect.setBounds(24, 104, 112, 24);
+    bSelect.setFont(new Font("Dialog", Font.BOLD, 11));
+    bSelect.setText("Select");
+    bSelect.setMargin(new Insets(2, 2, 2, 2));
+    bSelect.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent evt) {
+        bSelect_ActionPerformed(evt);
+      }
+    });
+    cp.add(bSelect);
+    bRuntest.setBounds(24, 144, 112, 88);
+    bRuntest.setFont(new Font("Dialog", Font.BOLD, 11));
+    bRuntest.setText("Run test");
+    bRuntest.setMargin(new Insets(2, 2, 2, 2));
+    bRuntest.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent evt) {
+        bRuntest_ActionPerformed(evt);
+      }
+    });
+    cp.add(bRuntest);
+
+    // Initialize processor first
+    proc = new NumberProcessor();
+
+    // Add window listener to close port on exit
+    addWindowListener(new WindowAdapter() {
+      @Override
+      public void windowClosing(WindowEvent e) {
+        if (readThread != null && readThread.isAlive()) {
+          readThread.interrupt();
+        }
+        if (proc != null) {
+          proc.closePort();
+        }
+      }
+    });
+
+    addComs();
+    setVisible(true);
+  } // end of public NumbGenGUI
+
+  // Anfang Methoden
+
+  public static void main(String[] args) {
+    SwingUtilities.invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        new NumbGenGUI();
+      }
+    });
+  } // end of main
+
+  public void addComs(){
+    SerialPort[] availablePorts = proc.getPorts();
+
+    if (availablePorts == null || availablePorts.length == 0) {
+      jComboBox1Model.addElement("No ports available");
+      bSelect.setEnabled(false);
+      bRuntest.setEnabled(false);
+      return;
+    }
+
+    for (SerialPort port : availablePorts) {
+      jComboBox1Model.addElement(port.getSystemPortName() + " - " + port.getPortDescription());
+    }
+  }
+
+  private void updateText1(String pText){
+    SwingUtilities.invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        jTextArea1.append(pText + "\n");
+        jTextArea1.setCaretPosition(jTextArea1.getDocument().getLength());
+      }
+    });
+  }
+
+  private void updateText2(String pText){
+    SwingUtilities.invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        jTextArea2.append(pText + "\n");
+        jTextArea2.setCaretPosition(jTextArea2.getDocument().getLength());
+      }
+    });
+  }
+
+
+  public void bSelect_ActionPerformed(ActionEvent evt) {
+    int selectedIndex = jComboBox1.getSelectedIndex();
+
+    if (selectedIndex < 0) {
+      JOptionPane.showMessageDialog(this, "Please select a port first!", "Error", JOptionPane.ERROR_MESSAGE);
+      return;
+    }
+
+    SerialPort[] ports = proc.getPorts();
+    if (selectedIndex < ports.length) {
+      boolean success = proc.openPort(selectedIndex);
+
+      if (success) {
+        jBoard.setText(ports[selectedIndex].getSystemPortName());
+        updateText2("Port opened: " + ports[selectedIndex].getSystemPortName());
+        bRuntest.setEnabled(true);
+      } else {
+        JOptionPane.showMessageDialog(this, "Failed to open port!", "Error", JOptionPane.ERROR_MESSAGE);
+        jBoard.setText("None");
+      }
+    }
+  } // end of bSelect_ActionPerformed
+
+  public void bRuntest_ActionPerformed(ActionEvent evt) {
+    if (!proc.isPortOpen()) {
+      JOptionPane.showMessageDialog(this, "Please select and open a port first!", "Error", JOptionPane.ERROR_MESSAGE);
+      return;
+    }
+
+    // Clear text areas
+    jTextArea1.setText("");
+    jTextArea2.setText("");
+
+    updateText2("Starting test...");
+
+    // Start reading in a separate thread
+    readThread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        proc.startReading(new NumberProcessor.DataListener() {
+          @Override
+          public void onDataReceived(String data) {
+            updateText1(data);
+          }
+
+          @Override
+          public void onProcessedData(String result) {
+            updateText2(result);
+          }
+        });
+      }
+    });
+    readThread.start();
+
+    bRuntest.setEnabled(false);
+    bSelect.setEnabled(false);
+  } // end of bRuntest_ActionPerformed
+
+  // Ende Methoden
+} // end of class NumbGenGUI
