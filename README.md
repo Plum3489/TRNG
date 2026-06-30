@@ -4,8 +4,8 @@ This took me some time, but it was fun to build! And I hope that you will enjoy 
 
 
 ## Overview
-This project is a True Random Number Generator (TRNG) using a hardware noise cicuit connected to a Seed XIAO RP2040 microcontroller.
-The raw random bits are then cleaned up and processed in Java using Von Neumann correction and SHA-256 whitening.
+This project is a True Random Number Generator (TRNG) using a hardware noise circuit connected to a Seed XIAO RP2040 microcontroller.
+The raw random bits are then cleaned up and processed using Von Neumann correction and SHA-256 whitening.
 
 ### But what actually is a TRNG???
 A TRNG is a different approach from a normal random number generator, as it's randomness comes from real, unpredictable physical phenomena. 
